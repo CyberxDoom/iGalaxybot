@@ -1,30 +1,80 @@
-FROM docker.io/python:3.10-alpine AS base
+# We're using Debian Slim Buster image
+FROM python:3.8.5-slim-buster
 
-RUN apk update
-RUN apk upgrade
-RUN apk add libjpeg-turbo-dev
+ENV PIP_NO_CACHE_DIR 1
 
-WORKDIR /opt/Clara
+RUN sed -i.bak 's/us-west-2\.ec2\.//' /etc/apt/sources.list
 
-FROM base AS builder
+# Installing Required Packages
+RUN apt update && apt upgrade -y && \
+    apt install --no-install-recommends -y \
+    debian-keyring \
+    debian-archive-keyring \
+    bash \
+    bzip2 \
+    curl \
+    figlet \
+    git \
+    util-linux \
+    libffi-dev \
+    libjpeg-dev \
+    libjpeg62-turbo-dev \
+    libwebp-dev \
+    linux-headers-amd64 \
+    musl-dev \
+    musl \
+    neofetch \
+    php-pgsql \
+    python3-lxml \
+    postgresql \
+    postgresql-client \
+    python3-psycopg2 \
+    libpq-dev \
+    libcurl4-openssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    python3-pip \
+    python3-requests \
+    python3-sqlalchemy \
+    python3-tz \
+    python3-aiohttp \
+    openssl \
+    pv \
+    jq \
+    wget \
+    python3 \
+    python3-dev \
+    libreadline-dev \
+    libyaml-dev \
+    gcc \
+    sqlite3 \
+    libsqlite3-dev \
+    sudo \
+    zlib1g \
+    ffmpeg \
+    libssl-dev \
+    libgconf-2-4 \
+    libxi6 \
+    xvfb \
+    unzip \
+    libopus0 \
+    libopus-dev \
+    && rm -rf /var/lib/apt/lists /var/cache/apt/archives /tmp
 
-RUN apk add gcc git libffi-dev libwebp-dev python3-dev musl-dev libxml2-dev libxslt-dev
+# Pypi package Repo upgrade
+RUN pip3 install --upgrade pip setuptools
 
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+# Copy Python Requirements to /root/SaitamaRobot
+RUN git clone -b shiken https://github.com/AnimeKaizoku/SaitamaRobot /root/SaitamaRobot
+WORKDIR /root/SaitamaRobot
 
-RUN python3 -m venv /venv
-RUN /venv/bin/pip3 install wheel
+#Copy config file to /root/SaitamaRobot/SaitamaRobot
+COPY ./SaitamaRobot/sample_config.py ./SaitamaRobot/config.py* /root/SaitamaRobot/SaitamaRobot/
 
-COPY requirements.txt .
+ENV PATH="/home/bot/bin:$PATH"
 
-RUN /venv/bin/pip3 install -U -r requirements.txt
+# Install requirements
+RUN pip3 install -U -r requirements.txt
 
-FROM base AS deployment
-
-RUN apk add postgresql neofetch
-
-COPY --from=builder /venv /venv
-COPY . .
-
-CMD [ "sh", "-c", "source /venv/bin/activate; python -m SaitamaRobot" ]
+# Starting Worker
+CMD ["python3","-m","SaitamaRobot"]
